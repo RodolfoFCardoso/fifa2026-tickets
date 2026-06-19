@@ -547,18 +547,10 @@ Do seu computador, abra **`https://www.<seu-domínio>`** (com cadeado válido):
 1. **Registrar o resource provider:** Portal → sua **Subscription** → **Resource providers** → procure **`Microsoft.DataMigration`** → **Register** (se ainda não estiver).
 2. **Permissões da sua conta:** **Contributor** no Azure SQL DB de destino + **Reader** no resource group + **Owner/Contributor** na subscription (necessário para **criar** o DMS).
 3. **Login de origem (`vm-data`):** o login usado pelo DMS precisa ser no mínimo **`db_datareader`** no banco de origem — o `adminsql` já é admin, então cobre.
-4. **Login de destino + migração de schema:** o Azure SQL Database vai começar **vazio**, então o DMS precisa **criar o schema**. Para isso o login de destino precisa de roles de servidor. O **`sqladmin`** (admin do servidor lógico) **já tem tudo** — use-o e siga em frente. _Se quiser um login dedicado (least-privilege, produção), rode no banco **`master`** do Azure SQL:_
-   ```sql
-   CREATE LOGIN migrator WITH PASSWORD = '<senha-forte>';
-   ALTER SERVER ROLE ##MS_DatabaseManager##  ADD MEMBER [migrator];
-   ALTER SERVER ROLE ##MS_DatabaseConnector## ADD MEMBER [migrator];
-   ALTER SERVER ROLE ##MS_DefinitionReader##  ADD MEMBER [migrator];
-   ALTER SERVER ROLE ##MS_LoginManager##      ADD MEMBER [migrator];
-   ```
 
 #### 5.3 Criar o DMS e registrar o Integration Runtime na `vm-data`
 
-> Como o SQL de origem está numa **VM privada** (`vm-data`), o DMS alcança a origem por um **Self-hosted Integration Runtime (SHIR)** instalado **na própria `vm-data`** — ela tem o SQL em `localhost` e sai por **443** para o Azure (não expõe o banco). É o mesmo papel que o IR tinha no fluxo antigo do ADS.
+> Como o SQL de origem está numa **VM privada**, o DMS alcança a origem por um **Self-hosted Integration Runtime (SHIR)** instalado numa VM **na mesma rede** — ele conecta no SQL pelo **IP privado** (`10.30.1.4`) e sai por **443** para o Azure (não expõe o banco). É o mesmo papel que o IR tinha no fluxo antigo do ADS.
 
 1. Portal → **Azure Database Migration Service** → **+ Create**.
 2. **Select migration scenario:** Source server type = **SQL Server**, Target = **Azure SQL Database** → tipo **Database Migration Service** → **Select**.
@@ -571,7 +563,7 @@ Do seu computador, abra **`https://www.<seu-domínio>`** (com cadeado válido):
 
 1. No DMS → **Overview → New migration**.
 2. **Select new migration scenario:** Source **SQL Server**, Target **Azure SQL Database**, mode **Offline** → **Select**.
-3. **Connect to source SQL Server:** **Server name** `localhost` (o SHIR roda na própria `vm-data`) · **Authentication** SQL · login `adminsql` / `Partiunuvem@2026` · marque **Trust server certificate** → **Next**.
+3. **Connect to source SQL Server:** **Server name** `10.30.1.4` (IP privado da VM do SQL) · **Authentication** SQL · login `adminsql` / `Partiunuvem@2026` · marque **Trust server certificate** → **Next**.
 4. **Select databases for migration:** marque **`FIFA2026Tickets`** → **Next**.
 5. **Connect to target Azure SQL Database:** **Server** `sql-prd-tk-cin-001.database.windows.net` · login `sqladmin` (ou `migrator`) / a senha → **Next**.
    > 💡 Se a conexão ao destino falhar, libere no **firewall do Azure SQL** o IP de saída da `vm-data` (Networking → firewall rules), ou confirme **"Allow Azure services"** (Fase 5.1).
